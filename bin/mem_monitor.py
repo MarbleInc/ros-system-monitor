@@ -83,7 +83,7 @@ def update_status_stale(stat, last_update_time):
     stat.values.pop(0)
     stat.values.insert(0, KeyValue(key = 'Update Status', value = stale_status))
     stat.values.insert(1, KeyValue(key = 'Time Since Update', value = str(time_since_update)))
-    
+
 
 class MemMonitor():
     def __init__(self, hostname, diag_hostname):
@@ -95,7 +95,7 @@ class MemMonitor():
         self._mem_level_error = rospy.get_param('~mem_level_error', mem_level_error)
 
         self._usage_timer = None
-        
+
         self._usage_stat = DiagnosticStatus()
         self._usage_stat.name = 'Memory Usage (%s)' % diag_hostname
         self._usage_stat.level = 1
@@ -138,20 +138,20 @@ class MemMonitor():
             total_mem_physical = data[1]
             used_mem_physical = data[2]
             free_mem_physical = data[3]
+            shared_mem = data[4]
+            buff_cache_mem = data[5]
+            available_mem = data[6]
             data = rows[2].split()
-            used_mem_wo_buffers = data[2]
-            free_mem_wo_buffers = data[3]
-            data = rows[3].split()
             total_mem_swap = data[1]
             used_mem_swap = data[2]
             free_mem_swap = data[3]
-            data = rows[4].split()
+            data = rows[3].split()
             total_mem = data[1]
             used_mem = data[2]
             free_mem = data[3]
 
             level = DiagnosticStatus.OK
-            mem_usage = float(used_mem_wo_buffers)/float(total_mem_physical)
+            mem_usage = float(available_mem)/float(total_mem_physical)
             if (mem_usage < self._mem_level_warn):
                 level = DiagnosticStatus.OK
             elif (mem_usage < self._mem_level_error):
@@ -162,15 +162,9 @@ class MemMonitor():
             values.append(KeyValue(key = 'Memory Status', value = mem_dict[level]))
             values.append(KeyValue(key = 'Total Memory (Physical)', value = total_mem_physical+"M"))
             values.append(KeyValue(key = 'Used Memory (Physical)', value = used_mem_physical+"M"))
-            values.append(KeyValue(key = 'Free Memory (Physical)', value = free_mem_physical+"M"))
-            values.append(KeyValue(key = 'Used Memory (Physical w/o Buffers)', value = used_mem_wo_buffers+"M"))
-            values.append(KeyValue(key = 'Free Memory (Physical w/o Buffers)', value = free_mem_wo_buffers+"M"))
-            values.append(KeyValue(key = 'Total Memory (Swap)', value = total_mem_swap+"M"))
-            values.append(KeyValue(key = 'Used Memory (Swap)', value = used_mem_swap+"M"))
-            values.append(KeyValue(key = 'Free Memory (Swap)', value = free_mem_swap+"M"))
-            values.append(KeyValue(key = 'Total Memory', value = total_mem+"M"))
-            values.append(KeyValue(key = 'Used Memory', value = used_mem+"M"))
-            values.append(KeyValue(key = 'Free Memory', value = free_mem+"M"))
+            values.append(KeyValue(key = 'Buff/Cache Memory (Used)', value = buff_cache_mem+"M"))
+            values.append(KeyValue(key = 'Available Memory', value = available_mem+"M"))
+            values.append(KeyValue(key = 'Percent Used', value = str(int(mem_usage*100))+"%"))
 
             msg = mem_dict[level]
         except Exception, e:
@@ -185,7 +179,7 @@ class MemMonitor():
         if rospy.is_shutdown():
             with self._mutex:
                 self.cancel_timers()
-            return 
+            return
 
         diag_level = 0
         diag_vals = [ KeyValue(key = 'Update Status', value = 'OK' ),
@@ -209,9 +203,9 @@ class MemMonitor():
             self._last_usage_time = rospy.get_time()
             self._usage_stat.level = diag_level
             self._usage_stat.values = diag_vals
-            
+
             self._usage_stat.message = usage_msg
-            
+
             if not rospy.is_shutdown():
                 self._usage_timer = threading.Timer(5.0, self.check_usage)
                 self._usage_timer.start()
