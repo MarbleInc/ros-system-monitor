@@ -189,9 +189,22 @@ class CPUMonitor():
                 return diag_vals, diag_msgs, diag_level
 
             tmp = stdout.strip()
+            tmp_label = 'Core %d Temperature' % index
+
+            cmd = 'cat %s' % temp_str.replace('_input', '_label')
+            p = subprocess.Popen(cmd, stdout = subprocess.PIPE,
+                                stderr = subprocess.PIPE, shell = True)
+            stdout, stderr = p.communicate()
+            retcode = p.returncode
+
+            if retcode == 0 and stdout:
+                tmp_label = stdout.strip() + ' Temperature'
+            else:
+                continue
+
             if unicode(tmp).isnumeric():
                 temp = float(tmp) / 1000
-                diag_vals.append(KeyValue(key = 'Core %d Temperature' % index, value = str(temp)+"DegC"))
+                diag_vals.append(KeyValue(key=tmp_label, value=str(temp)+"DegC"))
 
                 if temp >= self._cpu_temp_warn:
                     diag_level = max(diag_level, DiagnosticStatus.WARN)
@@ -384,7 +397,7 @@ class CPUMonitor():
     def get_core_temp_names(self):
         temp_vals = []
         try:
-            p = subprocess.Popen('find /sys/devices -name temp1_input',
+            p = subprocess.Popen('find /sys/devices -name \'temp*_input\'',
                                 stdout = subprocess.PIPE,
                                 stderr = subprocess.PIPE, shell = True)
             stdout, stderr = p.communicate()
