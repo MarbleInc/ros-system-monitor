@@ -135,12 +135,13 @@ class MemMonitor():
 
             rows = stdout.split('\n')
             data = rows[1].split()
-            total_mem_physical = data[1]
-            used_mem_physical = data[2]
-            free_mem_physical = data[3]
-            shared_mem = data[4]
-            buff_cache_mem = data[5]
-            available_mem = data[6]
+            total_mem_physical = int(data[1])
+            used_mem_physical = int(data[2])
+            free_mem_physical = int(data[3])
+            shared_mem = int(data[4])
+            buff_cache_mem = int(data[5])
+            available_mem = int(data[6])
+            total_mem_used = total_mem_physical - available_mem
             data = rows[2].split()
             total_mem_swap = data[1]
             used_mem_swap = data[2]
@@ -151,7 +152,8 @@ class MemMonitor():
             free_mem = data[3]
 
             level = DiagnosticStatus.OK
-            mem_usage = float(available_mem)/float(total_mem_physical)
+            # mem_usage = float(available_mem)/float(total_mem_physical)
+            mem_usage = float(total_mem_used) / float(total_mem_physical)
             if (mem_usage < self._mem_level_warn):
                 level = DiagnosticStatus.OK
             elif (mem_usage < self._mem_level_error):
@@ -159,12 +161,12 @@ class MemMonitor():
             else:
                 level = DiagnosticStatus.ERROR
 
-            values.append(KeyValue(key = 'Memory Status', value = mem_dict[level]))
-            values.append(KeyValue(key = 'Total Memory (Physical)', value = total_mem_physical+"M"))
-            values.append(KeyValue(key = 'Used Memory (Physical)', value = used_mem_physical+"M"))
-            values.append(KeyValue(key = 'Buff/Cache Memory (Used)', value = buff_cache_mem+"M"))
-            values.append(KeyValue(key = 'Available Memory', value = available_mem+"M"))
-            values.append(KeyValue(key = 'Percent Used', value = str(int(mem_usage*100))+"%"))
+            values.append(KeyValue(key='Memory Status', value=mem_dict[level]))
+            values.append(KeyValue(key='Total Memory (Physical)', value="%sM" % total_mem_physical))
+            values.append(KeyValue(key='Used Memory (Physical)', value="%sM" % used_mem_physical))
+            values.append(KeyValue(key='Buff/Cache Memory (Used)', value="%sM" % buff_cache_mem))
+            values.append(KeyValue(key='Available Memory', value="%sM" % available_mem))
+            values.append(KeyValue(key='Percent Used', value="%s%%" % int(mem_usage * 100)))
 
             msg = mem_dict[level]
         except Exception, e:
