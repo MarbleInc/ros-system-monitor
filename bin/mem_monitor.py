@@ -86,8 +86,10 @@ def update_status_stale(stat, last_update_time):
 
 
 class MemMonitor():
-    def __init__(self, hostname, diag_hostname):
+    def __init__(self, hostname, namespace, diag_hostname):
         self._diag_pub = rospy.Publisher('/diagnostics', DiagnosticArray, queue_size = 100)
+
+        self._namespace = namespace;
 
         self._mutex = threading.Lock()
 
@@ -97,7 +99,7 @@ class MemMonitor():
         self._usage_timer = None
 
         self._usage_stat = DiagnosticStatus()
-        self._usage_stat.name = 'Memory Usage'
+        self._usage_stat.name = '%s Memory Usage' % namespace
         self._usage_stat.level = 1
         self._usage_stat.hardware_id = hostname
         self._usage_stat.message = 'No Data'
@@ -120,7 +122,7 @@ class MemMonitor():
         level = DiagnosticStatus.OK
         msg = ''
 
-        mem_dict = { 0: 'OK', 1: 'Low Memory', 2: 'Very Low Memory' }
+        mem_dict = { 0: 'OK', 1: 'Low memory', 2: 'Very low memory' }
 
         try:
             p = subprocess.Popen('free -tm',
@@ -168,14 +170,14 @@ class MemMonitor():
             values.append(KeyValue(key='Available Memory', value="%sM" % available_mem))
             values.append(KeyValue(key='Percent Used', value="%s%%" % int(mem_usage * 100)))
 
-            msg = mem_dict[level]
+            msg = '%s on %s' % (mem_dict[level], self._namespace)
         except Exception, e:
             rospy.logerr(traceback.format_exc())
-            msg = 'Memory Usage Check Error'
+            msg = 'Memory usage check error on %s' % self._namespace
             values.append(KeyValue(key = msg, value = str(e)))
             level = DiagnosticStatus.ERROR
 
-        return level, mem_dict[level], values
+        return level, msg, values
 
     def check_usage(self):
         if rospy.is_shutdown():
@@ -246,7 +248,11 @@ if __name__ == '__main__':
         print >> sys.stderr, 'Memory monitor is unable to initialize node. Master may not be running.'
         sys.exit(0)
 
-    mem_node = MemMonitor(hostname, options.diag_hostname)
+    namespace = rospy.get_namespace().replace('/', '')
+    if not namespace:
+        namespace = hostname
+        
+    mem_node = MemMonitor(hostname, namespace, options.diag_hostname)
 
     rate = rospy.Rate(1.0)
     try:

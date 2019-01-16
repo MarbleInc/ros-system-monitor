@@ -59,8 +59,8 @@ hdd_temp_warn = 55.0
 hdd_temp_error = 70.0
 
 stat_dict = { 0: 'OK', 1: 'Warning', 2: 'Error' }
-temp_dict = { 0: 'OK', 1: 'Hot', 2: 'Critical Hot' }
-usage_dict = { 0: 'OK', 1: 'Low Disk Space', 2: 'Very Low Disk Space' }
+temp_dict = { 0: 'OK', 1: 'Hot', 2: 'Critical hot' }
+usage_dict = { 0: 'OK', 1: 'Low disk space', 2: 'Very low disk space' }
 
 REMOVABLE = ['/dev/sg1', '/dev/sdb'] # Store removable drives so we can ignore if removed
 
@@ -132,10 +132,11 @@ def update_status_stale(stat, last_update_time):
     stat.values.insert(1, KeyValue(key = 'Time Since Update', value = str(time_since_update)))
 
 class hdd_monitor():
-    def __init__(self, hostname, diag_hostname):
+    def __init__(self, hostname, namespace, diag_hostname):
         self._mutex = threading.Lock()
 
         self._hostname = hostname
+        self._namespace = namespace
         self._no_temp = rospy.get_param('~no_hdd_temp', False)
         self._no_temp_warn = rospy.get_param('~no_hdd_temp_warn', False)
         self._hdd_level_warn = rospy.get_param('~hdd_level_warn', hdd_level_warn)
@@ -151,7 +152,7 @@ class hdd_monitor():
         self._temp_timer = None
         if not self._no_temp:
           self._temp_stat = DiagnosticStatus()
-          self._temp_stat.name = "HDD Temperature"
+          self._temp_stat.name = "%s HDD Temperature" % namespace
           self._temp_stat.level = DiagnosticStatus.ERROR
           self._temp_stat.hardware_id = hostname
           self._temp_stat.message = 'No Data'
@@ -164,7 +165,7 @@ class hdd_monitor():
         self._usage_stat = DiagnosticStatus()
         self._usage_stat.level = DiagnosticStatus.ERROR
         self._usage_stat.hardware_id = hostname
-        self._usage_stat.name = 'HDD Usage'
+        self._usage_stat.name = '%s HDD Usage' % namespace
         self._usage_stat.values = [ KeyValue(key = 'Update Status', value = 'No Data' ),
                                     KeyValue(key = 'Time Since Last Update', value = 'N/A') ]
         self.check_disk_usage()
@@ -294,7 +295,7 @@ class hdd_monitor():
                             key = 'Disk %d Mount Point' % row_count, value = mount_pt))
 
                     diag_level = max(diag_level, level)
-                    diag_message = usage_dict[diag_level]
+                    diag_message = '%s on %s' % (usage_dict[diag_level], self._namespace)
 
             else:
                 diag_vals.append(KeyValue(key = 'Disk Space Reading', value = 'Failed'))
@@ -364,7 +365,11 @@ if __name__ == '__main__':
         print 'HDD monitor is unable to initialize node. Master may not be running.'
         sys.exit(0)
 
-    hdd_monitor = hdd_monitor(hostname, options.diag_hostname)
+    namespace = rospy.get_namespace().replace('/', '')
+    if not namespace:
+        namespace = hostname
+
+    hdd_monitor = hdd_monitor(hostname, namespace, options.diag_hostname)
     rate = rospy.Rate(1.0)
 
     try:

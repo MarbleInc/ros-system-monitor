@@ -49,7 +49,7 @@ import re
 
 NAME = 'ntp_monitor'
 
-def ntp_monitor(offset=500, self_offset=500, diag_hostname = None, error_offset = 5000000):
+def ntp_monitor(namespace, offset=500, self_offset=500, diag_hostname = None, error_offset = 5000000):
     pub = rospy.Publisher("/diagnostics", DiagnosticArray, queue_size = 100)
     rospy.init_node(NAME, anonymous=True)
 
@@ -63,7 +63,7 @@ def ntp_monitor(offset=500, self_offset=500, diag_hostname = None, error_offset 
 
     stat = DiagnosticStatus()
     stat.level = 0
-    stat.name = "NTP offset"
+    stat.name = "%s NTP Offset" % namespace
     stat.message = "OK"
     stat.hardware_id = hostname
     stat.values = []
@@ -96,14 +96,14 @@ def ntp_monitor(offset=500, self_offset=500, diag_hostname = None, error_offset 
 
                 if (abs(measured_offset) > off):
                     st.level = DiagnosticStatus.WARN
-                    st.message = "NTP Offset Too High"
+                    st.message = "NTP offset too high on %s" % namespace
                 if (abs(measured_offset) > error_offset):
                     st.level = DiagnosticStatus.ERROR
-                    st.message = "NTP Offset Too High"
+                    st.message = "NTP offset too high on %s" % namespace
 
             else:
                 st.level = DiagnosticStatus.ERROR
-                st.message = "Error Running ntpdate. Returned %d" % res
+                st.message = "Error running ntpdate. Returned %d on %s." % (res, namespace)
                 st.values = [ KeyValue("Offset (us)", "N/A"),
                               KeyValue("Offset tolerance (us)", str(off)),
                               KeyValue("Offset tolerance (us) for Error", str(error_offset)),
@@ -146,7 +146,11 @@ def ntp_monitor_main(argv=sys.argv):
     except:
         parser.error("Offsets must be numbers")
 
-    ntp_monitor(offset, self_offset, options.diag_hostname, error_offset)
+    namespace = rospy.get_namespace().replace('/', '')
+    if not namespace:
+        namespace = hostname
+
+    ntp_monitor(namespace, offset, self_offset, options.diag_hostname, error_offset)
 
 
 if __name__ == "__main__":

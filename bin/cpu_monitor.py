@@ -90,8 +90,10 @@ def update_status_stale(stat, last_update_time):
 
 
 class CPUMonitor():
-    def __init__(self, hostname, diag_hostname):
+    def __init__(self, hostname, namespace, diag_hostname):
         self._diag_pub = rospy.Publisher('/diagnostics', DiagnosticArray, queue_size = 100)
+
+        self._namespace = namespace
 
         self._mutex = threading.Lock()
 
@@ -114,7 +116,7 @@ class CPUMonitor():
 
         # CPU stats
         self._temp_stat = DiagnosticStatus()
-        self._temp_stat.name = 'CPU Temperature'
+        self._temp_stat.name = '%s CPU Temperature' % namespace
         self._temp_stat.level = 1
         self._temp_stat.hardware_id = hostname
         self._temp_stat.message = 'No Data'
@@ -122,7 +124,7 @@ class CPUMonitor():
                                    KeyValue(key = 'Time Since Last Update', value = 'N/A') ]
 
         self._usage_stat = DiagnosticStatus()
-        self._usage_stat.name = 'CPU Usage'
+        self._usage_stat.name = '%s CPU Usage' % namespace
         self._usage_stat.level = 1
         self._usage_stat.hardware_id = hostname
         self._usage_stat.message = 'No Data'
@@ -262,7 +264,7 @@ class CPUMonitor():
         level = DiagnosticStatus.OK
         vals = []
 
-        load_dict = { 0: 'OK', 1: 'High Load', 2: 'Very High Load' }
+        load_dict = { 0: 'OK', 1: 'High load', 2: 'Very high load' }
 
         try:
             p = subprocess.Popen('uptime', stdout = subprocess.PIPE,
@@ -293,7 +295,8 @@ class CPUMonitor():
             level = DiagnosticStatus.ERROR
             vals.append(KeyValue(key = 'Load Average Status', value = traceback.format_exc()))
 
-        return level, load_dict[level], vals
+        diag_msg = '%s on %s' % (load_dict[level], self._namespace)
+        return level, diag_msg, vals
 
     ##\brief Use mpstat to find CPU usage
     ##
@@ -301,7 +304,7 @@ class CPUMonitor():
         vals = []
         mp_level = DiagnosticStatus.OK
 
-        load_dict = { 0: 'OK', 1: 'High Load', 2: 'Error' }
+        load_dict = { 0: 'OK', 1: 'High load', 2: 'Error' }
 
         try:
             p = subprocess.Popen('mpstat -P ALL 1 1',
@@ -317,7 +320,7 @@ class CPUMonitor():
 
                 mp_level = DiagnosticStatus.ERROR
                 vals.append(KeyValue(key = '\"mpstat\" Call Error', value = str(retcode)))
-                return mp_level, 'Unable to Check CPU Usage', vals
+                return mp_level, 'Unable to Check CPU Usage on %s' % self._namespace, vals
 
             # Check which column '%idle' is, #4539
             # mpstat output changed between 8.06 and 8.1
@@ -384,13 +387,14 @@ class CPUMonitor():
                     rospy.logerr('Error checking number of cores. Expected %d, got %d. Computer may have not booted properly.',
                                   self._num_cores, num_cores)
                     self._has_error_core_count = True
-                return DiagnosticStatus.ERROR, 'Incorrect number of CPU cores', vals
+                return DiagnosticStatus.ERROR, 'Incorrect number of CPU cores on %s' % self._namespace, vals
 
         except Exception, e:
             mp_level = DiagnosticStatus.ERROR
             vals.append(KeyValue(key = 'mpstat Exception', value = str(e)))
 
-        return mp_level, load_dict[mp_level], vals
+        diag_msg = '%s on %s' % (load_dict[mp_level], self._namespace)
+        return mp_level, diag_msg, vals
 
     ## Returns names for core temperature files
     ## Returns list of names, each name can be read like file
@@ -542,7 +546,11 @@ if __name__ == '__main__':
         print >> sys.stderr, 'CPU monitor is unable to initialize node. Master may not be running.'
         sys.exit(0)
 
-    cpu_node = CPUMonitor(hostname, options.diag_hostname)
+    namespace = rospy.get_namespace().replace('/', '')
+    if not namespace:
+        namespace = hostname
+
+    cpu_node = CPUMonitor(hostname, namespace, options.diag_hostname)
 
     rate = rospy.Rate(1.0)
     try:

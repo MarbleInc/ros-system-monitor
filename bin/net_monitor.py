@@ -100,14 +100,15 @@ def get_sys_net(iface, sys):
   return (p.returncode, stdout.strip())
 
 class NetMonitor():
-  def __init__(self, hostname, diag_hostname):
+  def __init__(self, hostname, namespace, diag_hostname):
     self._diag_pub = rospy.Publisher('/diagnostics', DiagnosticArray, queue_size = 100)
+    self._namespace = namespace
     self._mutex = threading.Lock()
     self._net_level_warn = rospy.get_param('~net_level_warn', net_level_warn)
     self._net_capacity = rospy.get_param('~net_capacity', net_capacity)
     self._usage_timer = None
     self._usage_stat = DiagnosticStatus()
-    self._usage_stat.name = 'Network Usage'
+    self._usage_stat.name = '%s Network Usage' % namespace
     self._usage_stat.level = 1
     self._usage_stat.hardware_id = hostname
     self._usage_stat.message = 'No Data'
@@ -125,7 +126,7 @@ class NetMonitor():
 
   def check_network(self):
     values = []
-    net_dict = {0: 'OK', 1: 'High Network Usage', 2: 'Network Down', 3: 'Call Error'}
+    net_dict = {0: 'OK', 1: 'High network usage', 2: 'Network down', 3: 'Network check error'}
     try:
       p = subprocess.Popen('ifstat -q -S 1 1',
                            stdout = subprocess.PIPE,
@@ -191,7 +192,8 @@ class NetMonitor():
       msg = 'Network Usage Check Error'
       values.append(KeyValue(key = msg, value = str(e)))
       level = DiagnosticStatus.ERROR
-    return level, net_dict[level], values
+    diag_msg = '%s on %s' % (net_dict[level], self._namespace)
+    return level, diag_msg, values
 
   def check_usage(self):
     if rospy.is_shutdown():
@@ -251,7 +253,10 @@ if __name__ == '__main__':
     print >> sys.stderr,\
       'Network monitor is unable to initialize node. Master may not be running.'
     sys.exit(0)
-  net_node = NetMonitor(hostname, options.diag_hostname)
+  namespace = rospy.get_namespace().replace('/', '')
+  if not namespace:
+    namespace = hostname
+  net_node = NetMonitor(hostname, namespace, options.diag_hostname)
   rate = rospy.Rate(1.0)
   try:
     while not rospy.is_shutdown():
