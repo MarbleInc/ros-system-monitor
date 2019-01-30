@@ -102,8 +102,9 @@ def ntp_monitor(namespace, offset=500, self_offset=500, diag_hostname = None, er
                     st.message = "NTP offset too high on %s" % namespace
 
             else:
-                st.level = DiagnosticStatus.ERROR
-                st.message = "Error running ntpdate. Returned %d on %s." % (res, namespace)
+                # Warning (not error), since this is a non-critical failure.
+                st.level = DiagnosticStatus.WARN
+                st.message = "Error running ntpdate (returned %d on %s)" % (res, namespace)
                 st.values = [ KeyValue("Offset (us)", "N/A"),
                               KeyValue("Offset tolerance (us)", str(off)),
                               KeyValue("Offset tolerance (us) for Error", str(error_offset)),
