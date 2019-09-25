@@ -54,6 +54,9 @@ import socket
 
 from diagnostic_msgs.msg import DiagnosticArray, DiagnosticStatus, KeyValue
 
+from marble_structs.diagnostics import Status
+from mbot_diagnostics import DiagnosticUpdater, GenericDiagnostic, OutputDiagnostic
+
 mem_level_warn = 0.95
 mem_level_error = 0.99
 
@@ -87,7 +90,12 @@ def update_status_stale(stat, last_update_time):
 
 class MemMonitor():
     def __init__(self, hostname, namespace, diag_hostname):
-        self._diag_pub = rospy.Publisher('/diagnostics', DiagnosticArray, queue_size = 100)
+        self._diag_updater = DiagnosticUpdater('/ros_system_monitor/{}/mem/usage'.format(namespace))
+        self._publish_diagnostic = OutputDiagnostic(
+            '/publish',
+            params=rospy.get_param('~publish_stats_diagnostic_params'),
+        )
+        self._publish_diagnostic.add_to_updater(self._diag_updater)
 
         self._namespace = namespace;
 
@@ -105,9 +113,10 @@ class MemMonitor():
         self._usage_stat.message = 'No Data'
         self._usage_stat.values = [ KeyValue(key = 'Update Status', value = 'No Data' ),
                                     KeyValue(key = 'Time Since Last Update', value = 'N/A') ]
+        self._usage_diagnostic = GenericDiagnostic('/usage')
+        self._usage_diagnostic.add_to_updater(self._diag_updater)
 
         self._last_usage_time = 0
-        self._last_publish_time = 0
 
         # Start checking everything
         self.check_usage()
@@ -221,13 +230,15 @@ class MemMonitor():
             # Update everything with last update times
             update_status_stale(self._usage_stat, self._last_usage_time)
 
-            msg = DiagnosticArray()
-            msg.header.stamp = rospy.get_rostime()
-            msg.status.append(self._usage_stat)
+            # Convert from ROS diagnostics to mbot_diagnostics for publishing.
+            self._usage_diagnostic.set_status(
+                Status(self._usage_stat.level),
+                self._usage_stat.message,
+            )
+            for diag_val in self._usage_stat.values:
+                self._usage_diagnostic.set_metric(diag_val.key, diag_val.value)
 
-            if rospy.get_time() - self._last_publish_time > 0.5:
-                self._diag_pub.publish(msg)
-                self._last_publish_time = rospy.get_time()
+            self._publish_diagnostic.tick()
 
 
 if __name__ == '__main__':
@@ -251,7 +262,7 @@ if __name__ == '__main__':
     namespace = rospy.get_namespace().replace('/', '')
     if not namespace:
         namespace = hostname
-        
+
     mem_node = MemMonitor(hostname, namespace, options.diag_hostname)
 
     rate = rospy.Rate(1.0)

@@ -54,6 +54,9 @@ import socket
 
 from diagnostic_msgs.msg import DiagnosticArray, DiagnosticStatus, KeyValue
 
+from marble_structs.diagnostics import Status
+from mbot_diagnostics import DiagnosticUpdater, GenericDiagnostic, OutputDiagnostic
+
 cpu_load_warn = 0.9
 cpu_load_error = 1.1
 cpu_load1_warn = 0.9
@@ -91,7 +94,18 @@ def update_status_stale(stat, last_update_time):
 
 class CPUMonitor():
     def __init__(self, hostname, namespace, diag_hostname):
-        self._diag_pub = rospy.Publisher('/diagnostics', DiagnosticArray, queue_size = 100)
+        self._temp_diag_updater = DiagnosticUpdater(
+            '/ros_system_monitor/{}/cpu/temp'.format(namespace)
+        )
+        self._usage_diag_updater = DiagnosticUpdater(
+            '/ros_system_monitor/{}/cpu/usage'.format(namespace)
+        )
+        self._publish_diagnostic = OutputDiagnostic(
+            '/publish',
+            params=rospy.get_param('~publish_stats_diagnostic_params'),
+        )
+        self._publish_diagnostic.add_to_updater(self._temp_diag_updater)
+        self._publish_diagnostic.add_to_updater(self._usage_diag_updater)
 
         self._namespace = namespace
 
@@ -122,6 +136,8 @@ class CPUMonitor():
         self._temp_stat.message = 'No Data'
         self._temp_stat.values = [ KeyValue(key = 'Update Status', value = 'No Data' ),
                                    KeyValue(key = 'Time Since Last Update', value = 'N/A') ]
+        self._temp_diagnostic = GenericDiagnostic('/temp')
+        self._temp_diagnostic.add_to_updater(self._temp_diag_updater)
 
         self._usage_stat = DiagnosticStatus()
         self._usage_stat.name = '%s CPU Usage' % namespace
@@ -130,10 +146,11 @@ class CPUMonitor():
         self._usage_stat.message = 'No Data'
         self._usage_stat.values = [ KeyValue(key = 'Update Status', value = 'No Data' ),
                                     KeyValue(key = 'Time Since Last Update', value = 'N/A') ]
+        self._usage_diagnostic = GenericDiagnostic('/usage')
+        self._usage_diagnostic.add_to_updater(self._usage_diag_updater)
 
         self._last_temp_time = 0
         self._last_usage_time = 0
-        self._last_publish_time = 0
 
         self._usage_old = 0
         self._has_warned_mpstat = False
@@ -512,14 +529,21 @@ class CPUMonitor():
             update_status_stale(self._temp_stat, self._last_temp_time)
             update_status_stale(self._usage_stat, self._last_usage_time)
 
-            msg = DiagnosticArray()
-            msg.header.stamp = rospy.get_rostime()
-            msg.status.append(self._temp_stat)
-            msg.status.append(self._usage_stat)
+            # Convert from ROS diagnostics to mbot_diagnostics for publishing.
+            self._temp_diagnostic.set_status(
+                Status(self._temp_stat.level),
+                self._temp_stat.message,
+            )
+            for diag_val in self._temp_stat.values:
+                self._temp_diagnostic.set_metric(diag_val.key, diag_val.value)
+            self._usage_diagnostic.set_status(
+                Status(self._usage_stat.level),
+                self._usage_stat.message,
+            )
+            for diag_val in self._usage_stat.values:
+                self._usage_diagnostic.set_metric(diag_val.key, diag_val.value)
 
-            if rospy.get_time() - self._last_publish_time > 0.5:
-                self._diag_pub.publish(msg)
-                self._last_publish_time = rospy.get_time()
+            self._publish_diagnostic.tick()
 
 
         # Restart temperature checking if it goes stale, #4171

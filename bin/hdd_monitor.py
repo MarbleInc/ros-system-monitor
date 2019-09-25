@@ -53,6 +53,9 @@ import socket
 
 from diagnostic_msgs.msg import DiagnosticArray, DiagnosticStatus, KeyValue
 
+from marble_structs.diagnostics import Status
+from mbot_diagnostics import DiagnosticUpdater, GenericDiagnostic, OutputDiagnostic
+
 hdd_level_warn = 0.95
 hdd_level_error = 0.99
 hdd_temp_warn = 55.0
@@ -144,21 +147,34 @@ class hdd_monitor():
         self._hdd_temp_warn = rospy.get_param('~hdd_temp_warn', hdd_temp_warn)
         self._hdd_temp_error = rospy.get_param('~hdd_temp_error', hdd_temp_error)
 
-        self._diag_pub = rospy.Publisher('/diagnostics', DiagnosticArray, queue_size = 100)
-
-        self._last_publish_time = 0
-
         self._last_temp_time = 0
         self._temp_timer = None
+
+        self._temp_diag_updater = DiagnosticUpdater(
+            '/ros_system_monitor/{}/hdd/temp'.format(namespace)
+        )
+        self._usage_diag_updater = DiagnosticUpdater(
+            '/ros_system_monitor/{}/hdd/usage'.format(namespace)
+        )
+        self._publish_diagnostic = OutputDiagnostic(
+            '/publish',
+            params=rospy.get_param('~publish_stats_diagnostic_params'),
+        )
+        self._publish_diagnostic.add_to_updater(self._temp_diag_updater)
+        self._publish_diagnostic.add_to_updater(self._usage_diag_updater)
+        self._temp_stat = None
+        self._temp_diagnostic = None
         if not self._no_temp:
-          self._temp_stat = DiagnosticStatus()
-          self._temp_stat.name = "%s HDD Temperature" % namespace
-          self._temp_stat.level = DiagnosticStatus.ERROR
-          self._temp_stat.hardware_id = hostname
-          self._temp_stat.message = 'No Data'
-          self._temp_stat.values = [ KeyValue(key = 'Update Status', value = 'No Data'),
-                                    KeyValue(key = 'Time Since Last Update', value = 'N/A') ]
-          self.check_temps()
+            self._temp_stat = DiagnosticStatus()
+            self._temp_stat.name = "%s HDD Temperature" % namespace
+            self._temp_stat.level = DiagnosticStatus.ERROR
+            self._temp_stat.hardware_id = hostname
+            self._temp_stat.message = 'No Data'
+            self._temp_stat.values = [ KeyValue(key = 'Update Status', value = 'No Data'),
+                                      KeyValue(key = 'Time Since Last Update', value = 'N/A') ]
+            self._temp_diagnostic = GenericDiagnostic('/temp')
+            self._temp_diagnostic.add_to_updater(self._temp_diag_updater)
+            self.check_temps()
 
         self._last_usage_time = 0
         self._usage_timer = None
@@ -168,6 +184,8 @@ class hdd_monitor():
         self._usage_stat.name = '%s HDD Usage' % namespace
         self._usage_stat.values = [ KeyValue(key = 'Update Status', value = 'No Data' ),
                                     KeyValue(key = 'Time Since Last Update', value = 'N/A') ]
+        self._usage_diagnostic = GenericDiagnostic('/usage')
+        self._usage_diagnostic.add_to_updater(self._usage_diag_updater)
         self.check_disk_usage()
 
     ## Must have the lock to cancel everything
@@ -328,19 +346,25 @@ class hdd_monitor():
 
     def publish_stats(self):
         with self._mutex:
-            msg = DiagnosticArray()
-            msg.header.stamp = rospy.get_rostime()
-
+            # Convert from ROS diagnostics to mbot_diagnostics for publishing.
             if not self._no_temp:
-              update_status_stale(self._temp_stat, self._last_temp_time)
-              msg.status.append(self._temp_stat)
+                update_status_stale(self._temp_stat, self._last_temp_time)
+                self._temp_diagnostic.set_status(
+                    Status(self._temp_stat.level),
+                    self._temp_stat.message,
+                )
+                for diag_val in self._temp_stat.values:
+                    self._temp_diagnostic.set_metric(diag_val.key, diag_val.value)
 
             update_status_stale(self._usage_stat, self._last_usage_time)
-            msg.status.append(self._usage_stat)
+            self._usage_diagnostic.set_status(
+                Status(self._usage_stat.level),
+                self._usage_stat.message,
+            )
+            for diag_val in self._usage_stat.values:
+                self._usage_diagnostic.set_metric(diag_val.key, diag_val.value)
 
-            if rospy.get_time() - self._last_publish_time > 0.5:
-                self._diag_pub.publish(msg)
-                self._last_publish_time = rospy.get_time()
+            self._publish_diagnostic.tick()
 
 
 

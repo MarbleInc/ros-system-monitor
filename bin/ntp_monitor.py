@@ -47,11 +47,14 @@ import time
 
 import re
 
+from marble_structs.diagnostics import Status
+from mbot_diagnostics import DiagnosticUpdater, GenericDiagnostic
+
 NAME = 'ntp_monitor'
 
 def ntp_monitor(namespace, offset=500, self_offset=500, diag_hostname = None, error_offset = 5000000):
-    pub = rospy.Publisher("/diagnostics", DiagnosticArray, queue_size = 100)
     rospy.init_node(NAME, anonymous=True)
+    diag_updater = DiagnosticUpdater('/ros_system_monitor/{}/ntp/offset'.format(namespace))
 
     hostname = socket.gethostname()
     if diag_hostname is None:
@@ -67,6 +70,8 @@ def ntp_monitor(namespace, offset=500, self_offset=500, diag_hostname = None, er
     stat.message = "OK"
     stat.hardware_id = hostname
     stat.values = []
+    stat_diagnostic = GenericDiagnostic('/offset')
+    stat_diagnostic.add_to_updater(diag_updater)
 
 #    self_stat = DiagnosticStatus()
 #    self_stat.level = DiagnosticStatus.OK
@@ -112,10 +117,11 @@ def ntp_monitor(namespace, offset=500, self_offset=500, diag_hostname = None, er
                               KeyValue("Errors", e) ]
 
 
-        msg = DiagnosticArray()
-        msg.header.stamp = rospy.get_rostime()
-        msg.status = [stat]
-        pub.publish(msg)
+        # Convert from ROS diagnostics to mbot_diagnostics for publishing.
+        stat_diagnostic.set_status(Status(stat.level), stat.message)
+        for diag_val in stat.values:
+            stat_diagnostic.set_metric(diag_val.key, diag_val.value)
+
         time.sleep(1)
 
 def ntp_monitor_main(argv=sys.argv):
