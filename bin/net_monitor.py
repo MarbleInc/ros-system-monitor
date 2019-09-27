@@ -104,7 +104,7 @@ def get_sys_net(iface, sys):
 
 class NetMonitor():
   def __init__(self, hostname, namespace, diag_hostname):
-    self._diag_updater = DiagnosticUpdater('/ros_system_monitor/{}/net'.format(namespace))
+    self._diag_updater = DiagnosticUpdater(namespace + 'net')
 
     self._namespace = namespace
     self._mutex = threading.Lock()
@@ -112,7 +112,7 @@ class NetMonitor():
     self._net_capacity = rospy.get_param('~net_capacity', net_capacity)
     self._usage_timer = None
     self._usage_stat = DiagnosticStatus()
-    self._usage_stat.name = '%s Network Usage' % namespace
+    self._usage_stat.name = 'Network Usage'
     self._usage_stat.level = 1
     self._usage_stat.hardware_id = hostname
     self._usage_stat.message = 'No Data'
@@ -197,7 +197,7 @@ class NetMonitor():
       msg = 'Network Usage Check Error'
       values.append(KeyValue(key = msg, value = str(e)))
       level = DiagnosticStatus.ERROR
-    diag_msg = '%s on %s' % (net_dict[level], self._namespace)
+    diag_msg = net_dict[level]
     return level, diag_msg, values
 
   def check_usage(self):
@@ -260,9 +260,7 @@ if __name__ == '__main__':
     print >> sys.stderr,\
       'Network monitor is unable to initialize node. Master may not be running.'
     sys.exit(0)
-  namespace = rospy.get_namespace().replace('/', '')
-  if not namespace:
-    namespace = hostname
+  namespace = rospy.get_namespace() or hostname
   net_node = NetMonitor(hostname, namespace, options.diag_hostname)
   rate = rospy.Rate(1.0)
   try:

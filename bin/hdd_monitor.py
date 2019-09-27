@@ -150,12 +150,12 @@ class hdd_monitor():
         self._last_temp_time = 0
         self._temp_timer = None
 
-        self._diag_updater = DiagnosticUpdater('/ros_system_monitor/{}/hdd'.format(namespace))
+        self._diag_updater = DiagnosticUpdater(namespace + 'hdd')
         self._temp_stat = None
         self._temp_diagnostic = None
         if not self._no_temp:
             self._temp_stat = DiagnosticStatus()
-            self._temp_stat.name = "%s HDD Temperature" % namespace
+            self._temp_stat.name = "HDD Temperature"
             self._temp_stat.level = DiagnosticStatus.ERROR
             self._temp_stat.hardware_id = hostname
             self._temp_stat.message = 'No Data'
@@ -170,7 +170,7 @@ class hdd_monitor():
         self._usage_stat = DiagnosticStatus()
         self._usage_stat.level = DiagnosticStatus.ERROR
         self._usage_stat.hardware_id = hostname
-        self._usage_stat.name = '%s HDD Usage' % namespace
+        self._usage_stat.name = 'HDD Usage'
         self._usage_stat.values = [ KeyValue(key = 'Update Status', value = 'No Data' ),
                                     KeyValue(key = 'Time Since Last Update', value = 'N/A') ]
         self._usage_diagnostic = GenericDiagnostic('/usage')
@@ -302,7 +302,7 @@ class hdd_monitor():
                             key = 'Disk %d Mount Point' % row_count, value = mount_pt))
 
                     diag_level = max(diag_level, level)
-                    diag_message = '%s on %s' % (usage_dict[diag_level], self._namespace)
+                    diag_message = usage_dict[diag_level]
 
             else:
                 diag_vals.append(KeyValue(key = 'Disk Space Reading', value = 'Failed'))
@@ -376,9 +376,7 @@ if __name__ == '__main__':
         print 'HDD monitor is unable to initialize node. Master may not be running.'
         sys.exit(0)
 
-    namespace = rospy.get_namespace().replace('/', '')
-    if not namespace:
-        namespace = hostname
+    namespace = rospy.get_namespace() or hostname
 
     hdd_monitor = hdd_monitor(hostname, namespace, options.diag_hostname)
     rate = rospy.Rate(1.0)

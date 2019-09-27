@@ -94,7 +94,7 @@ def update_status_stale(stat, last_update_time):
 
 class CPUMonitor():
     def __init__(self, hostname, namespace, diag_hostname):
-        self._diag_updater = DiagnosticUpdater('/ros_system_monitor/{}/cpu'.format(namespace))
+        self._diag_updater = DiagnosticUpdater(namespace + 'cpu')
 
         self._namespace = namespace
 
@@ -119,7 +119,7 @@ class CPUMonitor():
 
         # CPU stats
         self._temp_stat = DiagnosticStatus()
-        self._temp_stat.name = '%s CPU Temperature' % namespace
+        self._temp_stat.name = 'CPU Temperature'
         self._temp_stat.level = 1
         self._temp_stat.hardware_id = hostname
         self._temp_stat.message = 'No Data'
@@ -129,7 +129,7 @@ class CPUMonitor():
         self._temp_diagnostic.add_to_updater(self._diag_updater)
 
         self._usage_stat = DiagnosticStatus()
-        self._usage_stat.name = '%s CPU Usage' % namespace
+        self._usage_stat.name = 'CPU Usage'
         self._usage_stat.level = 1
         self._usage_stat.hardware_id = hostname
         self._usage_stat.message = 'No Data'
@@ -301,7 +301,7 @@ class CPUMonitor():
             level = DiagnosticStatus.ERROR
             vals.append(KeyValue(key = 'Load Average Status', value = traceback.format_exc()))
 
-        diag_msg = '%s on %s' % (load_dict[level], self._namespace)
+        diag_msg = load_dict[level]
         return level, diag_msg, vals
 
     ##\brief Use mpstat to find CPU usage
@@ -326,7 +326,7 @@ class CPUMonitor():
 
                 mp_level = DiagnosticStatus.ERROR
                 vals.append(KeyValue(key = '\"mpstat\" Call Error', value = str(retcode)))
-                return mp_level, 'Unable to Check CPU Usage on %s' % self._namespace, vals
+                return mp_level, 'Unable to Check CPU Usage', vals
 
             # Check which column '%idle' is, #4539
             # mpstat output changed between 8.06 and 8.1
@@ -393,13 +393,13 @@ class CPUMonitor():
                     rospy.logerr('Error checking number of cores. Expected %d, got %d. Computer may have not booted properly.',
                                   self._num_cores, num_cores)
                     self._has_error_core_count = True
-                return DiagnosticStatus.ERROR, 'Incorrect number of CPU cores on %s' % self._namespace, vals
+                return DiagnosticStatus.ERROR, 'Incorrect number of CPU cores', vals
 
         except Exception, e:
             mp_level = DiagnosticStatus.ERROR
             vals.append(KeyValue(key = 'mpstat Exception', value = str(e)))
 
-        diag_msg = '%s on %s' % (load_dict[mp_level], self._namespace)
+        diag_msg = load_dict[mp_level]
         return mp_level, diag_msg, vals
 
     ## Returns names for core temperature files
@@ -557,9 +557,7 @@ if __name__ == '__main__':
         print >> sys.stderr, 'CPU monitor is unable to initialize node. Master may not be running.'
         sys.exit(0)
 
-    namespace = rospy.get_namespace().replace('/', '')
-    if not namespace:
-        namespace = hostname
+    namespace = rospy.get_namespace() or hostname
 
     cpu_node = CPUMonitor(hostname, namespace, options.diag_hostname)
 
