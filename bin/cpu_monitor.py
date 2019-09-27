@@ -55,7 +55,7 @@ import socket
 from diagnostic_msgs.msg import DiagnosticArray, DiagnosticStatus, KeyValue
 
 from marble_structs.diagnostics import Status
-from mbot_diagnostics import DiagnosticUpdater, GenericDiagnostic, OutputDiagnostic
+from mbot_diagnostics import DiagnosticUpdater, GenericDiagnostic
 
 cpu_load_warn = 0.9
 cpu_load_error = 1.1
@@ -95,11 +95,6 @@ def update_status_stale(stat, last_update_time):
 class CPUMonitor():
     def __init__(self, hostname, namespace, diag_hostname):
         self._diag_updater = DiagnosticUpdater('/ros_system_monitor/{}/cpu'.format(namespace))
-        self._publish_diagnostic = OutputDiagnostic(
-            '/publish',
-            params=rospy.get_param('~publish_stats_diagnostic_params'),
-        )
-        self._publish_diagnostic.add_to_updater(self._diag_updater)
 
         self._namespace = namespace
 
@@ -536,8 +531,6 @@ class CPUMonitor():
             )
             for diag_val in self._usage_stat.values:
                 self._usage_diagnostic.set_metric(diag_val.key, diag_val.value)
-
-            self._publish_diagnostic.tick()
 
 
         # Restart temperature checking if it goes stale, #4171

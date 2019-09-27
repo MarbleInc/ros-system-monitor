@@ -6,9 +6,6 @@ cpu_monitor:
   cpu_load5_warn: 0.8
   cpu_temp_warn: 85.0
   cpu_temp_error: 90.0
-  publish_stats_diagnostic_params:
-    freq_warning_thresholds:
-      max_interval_sec: 20.0
 hdd_monitor:
   no_hdd_temp: true
   no_hdd_temp_warn: false
@@ -16,15 +13,9 @@ hdd_monitor:
   hdd_level_error: 0.99
   hdd_temp_warn: 55.0
   hdd_temp_error: 70.0
-  publish_stats_diagnostic_params:
-    freq_warning_thresholds:
-      max_interval_sec: 20.0
 mem_monitor:
   mem_level_warn: 0.95
   mem_level_error: 0.99
-  publish_stats_diagnostic_params:
-    freq_warning_thresholds:
-      max_interval_sec: 20.0
 ntp_monitor:
   reference_host: ntp.ubuntu.com
   offset_tolerance: 500.0
@@ -32,6 +23,3 @@ ntp_monitor:
 net_monitor:
   net_level_warn: 0.95
   net_capacity: 128.0
-  publish_stats_diagnostic_params:
-    freq_warning_thresholds:
-      max_interval_sec: 20.0

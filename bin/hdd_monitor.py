@@ -54,7 +54,7 @@ import socket
 from diagnostic_msgs.msg import DiagnosticArray, DiagnosticStatus, KeyValue
 
 from marble_structs.diagnostics import Status
-from mbot_diagnostics import DiagnosticUpdater, GenericDiagnostic, OutputDiagnostic
+from mbot_diagnostics import DiagnosticUpdater, GenericDiagnostic
 
 hdd_level_warn = 0.95
 hdd_level_error = 0.99
@@ -151,11 +151,6 @@ class hdd_monitor():
         self._temp_timer = None
 
         self._diag_updater = DiagnosticUpdater('/ros_system_monitor/{}/hdd'.format(namespace))
-        self._publish_diagnostic = OutputDiagnostic(
-            '/publish',
-            params=rospy.get_param('~publish_stats_diagnostic_params'),
-        )
-        self._publish_diagnostic.add_to_updater(self._diag_updater)
         self._temp_stat = None
         self._temp_diagnostic = None
         if not self._no_temp:
@@ -357,8 +352,6 @@ class hdd_monitor():
             )
             for diag_val in self._usage_stat.values:
                 self._usage_diagnostic.set_metric(diag_val.key, diag_val.value)
-
-            self._publish_diagnostic.tick()
 
 
 
