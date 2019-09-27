@@ -54,7 +54,7 @@ NAME = 'ntp_monitor'
 
 def ntp_monitor(namespace, offset=500, self_offset=500, diag_hostname = None, error_offset = 5000000):
     rospy.init_node(NAME, anonymous=True)
-    diag_updater = DiagnosticUpdater('/ros_system_monitor/{}/ntp/offset'.format(namespace))
+    diag_updater = DiagnosticUpdater('/ros_system_monitor/{}/ntp'.format(namespace))
 
     hostname = socket.gethostname()
     if diag_hostname is None:

@@ -104,7 +104,7 @@ def get_sys_net(iface, sys):
 
 class NetMonitor():
   def __init__(self, hostname, namespace, diag_hostname):
-    self._diag_updater = DiagnosticUpdater('/ros_system_monitor/{}/net/usage'.format(namespace))
+    self._diag_updater = DiagnosticUpdater('/ros_system_monitor/{}/net'.format(namespace))
     self._publish_diagnostic = OutputDiagnostic(
       '/publish',
       params=rospy.get_param('~publish_stats_diagnostic_params'),

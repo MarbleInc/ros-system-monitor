@@ -150,18 +150,12 @@ class hdd_monitor():
         self._last_temp_time = 0
         self._temp_timer = None
 
-        self._temp_diag_updater = DiagnosticUpdater(
-            '/ros_system_monitor/{}/hdd/temp'.format(namespace)
-        )
-        self._usage_diag_updater = DiagnosticUpdater(
-            '/ros_system_monitor/{}/hdd/usage'.format(namespace)
-        )
+        self._diag_updater = DiagnosticUpdater('/ros_system_monitor/{}/hdd'.format(namespace))
         self._publish_diagnostic = OutputDiagnostic(
             '/publish',
             params=rospy.get_param('~publish_stats_diagnostic_params'),
         )
-        self._publish_diagnostic.add_to_updater(self._temp_diag_updater)
-        self._publish_diagnostic.add_to_updater(self._usage_diag_updater)
+        self._publish_diagnostic.add_to_updater(self._diag_updater)
         self._temp_stat = None
         self._temp_diagnostic = None
         if not self._no_temp:
@@ -173,7 +167,7 @@ class hdd_monitor():
             self._temp_stat.values = [ KeyValue(key = 'Update Status', value = 'No Data'),
                                       KeyValue(key = 'Time Since Last Update', value = 'N/A') ]
             self._temp_diagnostic = GenericDiagnostic('/temp')
-            self._temp_diagnostic.add_to_updater(self._temp_diag_updater)
+            self._temp_diagnostic.add_to_updater(self._diag_updater)
             self.check_temps()
 
         self._last_usage_time = 0
@@ -185,7 +179,7 @@ class hdd_monitor():
         self._usage_stat.values = [ KeyValue(key = 'Update Status', value = 'No Data' ),
                                     KeyValue(key = 'Time Since Last Update', value = 'N/A') ]
         self._usage_diagnostic = GenericDiagnostic('/usage')
-        self._usage_diagnostic.add_to_updater(self._usage_diag_updater)
+        self._usage_diagnostic.add_to_updater(self._diag_updater)
         self.check_disk_usage()
 
     ## Must have the lock to cancel everything

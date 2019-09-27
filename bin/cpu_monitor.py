@@ -94,18 +94,12 @@ def update_status_stale(stat, last_update_time):
 
 class CPUMonitor():
     def __init__(self, hostname, namespace, diag_hostname):
-        self._temp_diag_updater = DiagnosticUpdater(
-            '/ros_system_monitor/{}/cpu/temp'.format(namespace)
-        )
-        self._usage_diag_updater = DiagnosticUpdater(
-            '/ros_system_monitor/{}/cpu/usage'.format(namespace)
-        )
+        self._diag_updater = DiagnosticUpdater('/ros_system_monitor/{}/cpu'.format(namespace))
         self._publish_diagnostic = OutputDiagnostic(
             '/publish',
             params=rospy.get_param('~publish_stats_diagnostic_params'),
         )
-        self._publish_diagnostic.add_to_updater(self._temp_diag_updater)
-        self._publish_diagnostic.add_to_updater(self._usage_diag_updater)
+        self._publish_diagnostic.add_to_updater(self._diag_updater)
 
         self._namespace = namespace
 
@@ -137,7 +131,7 @@ class CPUMonitor():
         self._temp_stat.values = [ KeyValue(key = 'Update Status', value = 'No Data' ),
                                    KeyValue(key = 'Time Since Last Update', value = 'N/A') ]
         self._temp_diagnostic = GenericDiagnostic('/temp')
-        self._temp_diagnostic.add_to_updater(self._temp_diag_updater)
+        self._temp_diagnostic.add_to_updater(self._diag_updater)
 
         self._usage_stat = DiagnosticStatus()
         self._usage_stat.name = '%s CPU Usage' % namespace
@@ -147,7 +141,7 @@ class CPUMonitor():
         self._usage_stat.values = [ KeyValue(key = 'Update Status', value = 'No Data' ),
                                     KeyValue(key = 'Time Since Last Update', value = 'N/A') ]
         self._usage_diagnostic = GenericDiagnostic('/usage')
-        self._usage_diagnostic.add_to_updater(self._usage_diag_updater)
+        self._usage_diagnostic.add_to_updater(self._diag_updater)
 
         self._last_temp_time = 0
         self._last_usage_time = 0
