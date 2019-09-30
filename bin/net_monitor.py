@@ -55,6 +55,9 @@ import socket
 
 from diagnostic_msgs.msg import DiagnosticArray, DiagnosticStatus, KeyValue
 
+from marble_structs.diagnostics import Status
+from mbot_diagnostics import DiagnosticUpdater, GenericDiagnostic
+
 net_level_warn = 0.95
 net_capacity = 128
 
@@ -101,14 +104,18 @@ def get_sys_net(iface, sys):
 
 class NetMonitor():
   def __init__(self, hostname, namespace, diag_hostname):
-    self._diag_pub = rospy.Publisher('/diagnostics', DiagnosticArray, queue_size = 100)
+    self._diag_updater = DiagnosticUpdater(
+      name=namespace + 'net',
+      display_name=diag_hostname + ' network',
+    )
+
     self._namespace = namespace
     self._mutex = threading.Lock()
     self._net_level_warn = rospy.get_param('~net_level_warn', net_level_warn)
     self._net_capacity = rospy.get_param('~net_capacity', net_capacity)
     self._usage_timer = None
     self._usage_stat = DiagnosticStatus()
-    self._usage_stat.name = '%s Network Usage' % namespace
+    self._usage_stat.name = 'Network Usage'
     self._usage_stat.level = 1
     self._usage_stat.hardware_id = hostname
     self._usage_stat.message = 'No Data'
@@ -116,8 +123,9 @@ class NetMonitor():
                                value = 'No Data' ),
                                KeyValue(key = 'Time Since Last Update',
                                value = 'N/A') ]
+    self._usage_diagnostic = GenericDiagnostic('/usage')
+    self._usage_diagnostic.add_to_updater(self._diag_updater)
     self._last_usage_time = 0
-    self._last_publish_time = 0
     self.check_usage()
 
   def cancel_timers(self):
@@ -192,7 +200,7 @@ class NetMonitor():
       msg = 'Network Usage Check Error'
       values.append(KeyValue(key = msg, value = str(e)))
       level = DiagnosticStatus.ERROR
-    diag_msg = '%s on %s' % (net_dict[level], self._namespace)
+    diag_msg = net_dict[level]
     return level, diag_msg, values
 
   def check_usage(self):
@@ -227,12 +235,14 @@ class NetMonitor():
   def publish_stats(self):
     with self._mutex:
       update_status_stale(self._usage_stat, self._last_usage_time)
-      msg = DiagnosticArray()
-      msg.header.stamp = rospy.get_rostime()
-      msg.status.append(self._usage_stat)
-      if rospy.get_time() - self._last_publish_time > 0.5:
-        self._diag_pub.publish(msg)
-        self._last_publish_time = rospy.get_time()
+
+      # Convert from ROS diagnostics to mbot_diagnostics for publishing.
+      self._usage_diagnostic.set_status(
+        Status(self._usage_stat.level),
+        self._usage_stat.message,
+      )
+      for diag_val in self._usage_stat.values:
+        self._usage_diagnostic.set_metric(diag_val.key, diag_val.value)
 
 if __name__ == '__main__':
   hostname = socket.gethostname()
@@ -241,9 +251,9 @@ if __name__ == '__main__':
   import optparse
   parser =\
     optparse.OptionParser(
-    usage="usage: net_monitor.py [--diag-hostname=cX]")
+    usage="usage: net_monitor.py --diag-hostname=com-X")
   parser.add_option("--diag-hostname", dest="diag_hostname",
-                    help="Computer name in diagnostics output (ex: 'c1')",
+                    help="Computer name in diagnostics output (ex: 'com-1')",
                     metavar="DIAG_HOSTNAME",
                     action="store", default = hostname)
   options, args = parser.parse_args(rospy.myargv())
@@ -253,9 +263,7 @@ if __name__ == '__main__':
     print >> sys.stderr,\
       'Network monitor is unable to initialize node. Master may not be running.'
     sys.exit(0)
-  namespace = rospy.get_namespace().replace('/', '')
-  if not namespace:
-    namespace = hostname
+  namespace = rospy.get_namespace() or hostname
   net_node = NetMonitor(hostname, namespace, options.diag_hostname)
   rate = rospy.Rate(1.0)
   try:

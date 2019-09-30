@@ -47,11 +47,17 @@ import time
 
 import re
 
+from marble_structs.diagnostics import Status
+from mbot_diagnostics import DiagnosticUpdater, GenericDiagnostic
+
 NAME = 'ntp_monitor'
 
 def ntp_monitor(namespace, offset=500, self_offset=500, diag_hostname = None, error_offset = 5000000):
-    pub = rospy.Publisher("/diagnostics", DiagnosticArray, queue_size = 100)
     rospy.init_node(NAME, anonymous=True)
+    diag_updater = DiagnosticUpdater(
+        name=namespace + 'ntp',
+        display_name=diag_hostname + ' NTP',
+    )
 
     hostname = socket.gethostname()
     if diag_hostname is None:
@@ -63,10 +69,12 @@ def ntp_monitor(namespace, offset=500, self_offset=500, diag_hostname = None, er
 
     stat = DiagnosticStatus()
     stat.level = 0
-    stat.name = "%s NTP Offset" % namespace
+    stat.name = "NTP Offset"
     stat.message = "OK"
     stat.hardware_id = hostname
     stat.values = []
+    stat_diagnostic = GenericDiagnostic('/offset')
+    stat_diagnostic.add_to_updater(diag_updater)
 
 #    self_stat = DiagnosticStatus()
 #    self_stat.level = DiagnosticStatus.OK
@@ -96,15 +104,15 @@ def ntp_monitor(namespace, offset=500, self_offset=500, diag_hostname = None, er
 
                 if (abs(measured_offset) > off):
                     st.level = DiagnosticStatus.WARN
-                    st.message = "NTP offset too high on %s" % namespace
+                    st.message = "NTP offset too high"
                 if (abs(measured_offset) > error_offset):
                     st.level = DiagnosticStatus.ERROR
-                    st.message = "NTP offset too high on %s" % namespace
+                    st.message = "NTP offset too high"
 
             else:
                 # Warning (not error), since this is a non-critical failure.
                 st.level = DiagnosticStatus.WARN
-                st.message = "Error running ntpdate (returned %d on %s)" % (res, namespace)
+                st.message = "Error running ntpdate (returned %d)" % res
                 st.values = [ KeyValue("Offset (us)", "N/A"),
                               KeyValue("Offset tolerance (us)", str(off)),
                               KeyValue("Offset tolerance (us) for Error", str(error_offset)),
@@ -112,15 +120,16 @@ def ntp_monitor(namespace, offset=500, self_offset=500, diag_hostname = None, er
                               KeyValue("Errors", e) ]
 
 
-        msg = DiagnosticArray()
-        msg.header.stamp = rospy.get_rostime()
-        msg.status = [stat]
-        pub.publish(msg)
+        # Convert from ROS diagnostics to mbot_diagnostics for publishing.
+        stat_diagnostic.set_status(Status(stat.level), stat.message)
+        for diag_val in stat.values:
+            stat_diagnostic.set_metric(diag_val.key, diag_val.value)
+
         time.sleep(1)
 
 def ntp_monitor_main(argv=sys.argv):
     import optparse
-    parser = optparse.OptionParser(usage="usage: ntp_monitor ntp-hostname []")
+    parser = optparse.OptionParser(usage="usage: ntp_monitor --diag-hostname=com-X []")
     parser.add_option("--offset-tolerance", dest="offset_tol",
                       action="store", default=500,
                       help="Offset from NTP host", metavar="OFFSET-TOL")
@@ -131,9 +140,9 @@ def ntp_monitor_main(argv=sys.argv):
                       action="store", default=500,
                       help="Offset from self", metavar="SELF_OFFSET-TOL")
     parser.add_option("--diag-hostname", dest="diag_hostname",
-                      help="Computer name in diagnostics output (ex: 'c1')",
+                      help="Computer name in diagnostics output (ex: 'com-1')",
                       metavar="DIAG_HOSTNAME",
-                      action="store", default=None)
+                      action="store", default='com-?')
     options, args = parser.parse_args(rospy.myargv())
 
 #    if (len(args) != 2):
@@ -147,9 +156,7 @@ def ntp_monitor_main(argv=sys.argv):
     except:
         parser.error("Offsets must be numbers")
 
-    namespace = rospy.get_namespace().replace('/', '')
-    if not namespace:
-        namespace = hostname
+    namespace = rospy.get_namespace() or hostname
 
     ntp_monitor(namespace, offset, self_offset, options.diag_hostname, error_offset)
 
