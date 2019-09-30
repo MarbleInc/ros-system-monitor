@@ -150,7 +150,10 @@ class hdd_monitor():
         self._last_temp_time = 0
         self._temp_timer = None
 
-        self._diag_updater = DiagnosticUpdater(namespace + 'hdd')
+        self._diag_updater = DiagnosticUpdater(
+            name=namespace + 'hdd',
+            display_name=diag_hostname + ' HDD',
+        )
         self._temp_stat = None
         self._temp_diagnostic = None
         if not self._no_temp:
@@ -363,9 +366,9 @@ if __name__ == '__main__':
     hostname = hostname.replace('-', '_')
 
     import optparse
-    parser = optparse.OptionParser(usage="usage: hdd_monitor.py [--diag-hostname=cX]")
+    parser = optparse.OptionParser(usage="usage: hdd_monitor.py --diag-hostname=com-X")
     parser.add_option("--diag-hostname", dest="diag_hostname",
-                      help="Computer name in diagnostics output (ex: 'c1')",
+                      help="Computer name in diagnostics output (ex: 'com-1')",
                       metavar="DIAG_HOSTNAME",
                       action="store", default = hostname)
     options, args = parser.parse_args(rospy.myargv())

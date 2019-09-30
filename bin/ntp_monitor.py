@@ -54,7 +54,10 @@ NAME = 'ntp_monitor'
 
 def ntp_monitor(namespace, offset=500, self_offset=500, diag_hostname = None, error_offset = 5000000):
     rospy.init_node(NAME, anonymous=True)
-    diag_updater = DiagnosticUpdater(namespace + 'ntp')
+    diag_updater = DiagnosticUpdater(
+        name=namespace + 'ntp',
+        display_name=diag_hostname + ' NTP',
+    )
 
     hostname = socket.gethostname()
     if diag_hostname is None:
@@ -126,7 +129,7 @@ def ntp_monitor(namespace, offset=500, self_offset=500, diag_hostname = None, er
 
 def ntp_monitor_main(argv=sys.argv):
     import optparse
-    parser = optparse.OptionParser(usage="usage: ntp_monitor ntp-hostname []")
+    parser = optparse.OptionParser(usage="usage: ntp_monitor --diag-hostname=com-X []")
     parser.add_option("--offset-tolerance", dest="offset_tol",
                       action="store", default=500,
                       help="Offset from NTP host", metavar="OFFSET-TOL")
@@ -137,9 +140,9 @@ def ntp_monitor_main(argv=sys.argv):
                       action="store", default=500,
                       help="Offset from self", metavar="SELF_OFFSET-TOL")
     parser.add_option("--diag-hostname", dest="diag_hostname",
-                      help="Computer name in diagnostics output (ex: 'c1')",
+                      help="Computer name in diagnostics output (ex: 'com-1')",
                       metavar="DIAG_HOSTNAME",
-                      action="store", default=None)
+                      action="store", default='com-?')
     options, args = parser.parse_args(rospy.myargv())
 
 #    if (len(args) != 2):

@@ -90,7 +90,10 @@ def update_status_stale(stat, last_update_time):
 
 class MemMonitor():
     def __init__(self, hostname, namespace, diag_hostname):
-        self._diag_updater = DiagnosticUpdater(namespace + 'mem')
+        self._diag_updater = DiagnosticUpdater(
+            name=namespace + 'mem',
+            display_name=diag_hostname + ' memory',
+        )
 
         self._namespace = namespace;
 
@@ -239,9 +242,9 @@ if __name__ == '__main__':
     hostname = hostname.replace('-', '_')
 
     import optparse
-    parser = optparse.OptionParser(usage="usage: mem_monitor.py [--diag-hostname=cX]")
+    parser = optparse.OptionParser(usage="usage: mem_monitor.py --diag-hostname=com-X")
     parser.add_option("--diag-hostname", dest="diag_hostname",
-                      help="Computer name in diagnostics output (ex: 'c1')",
+                      help="Computer name in diagnostics output (ex: 'com-1')",
                       metavar="DIAG_HOSTNAME",
                       action="store", default = hostname)
     options, args = parser.parse_args(rospy.myargv())

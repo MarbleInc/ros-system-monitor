@@ -104,7 +104,10 @@ def get_sys_net(iface, sys):
 
 class NetMonitor():
   def __init__(self, hostname, namespace, diag_hostname):
-    self._diag_updater = DiagnosticUpdater(namespace + 'net')
+    self._diag_updater = DiagnosticUpdater(
+      name=namespace + 'net',
+      display_name=diag_hostname + ' network',
+    )
 
     self._namespace = namespace
     self._mutex = threading.Lock()
@@ -248,9 +251,9 @@ if __name__ == '__main__':
   import optparse
   parser =\
     optparse.OptionParser(
-    usage="usage: net_monitor.py [--diag-hostname=cX]")
+    usage="usage: net_monitor.py --diag-hostname=com-X")
   parser.add_option("--diag-hostname", dest="diag_hostname",
-                    help="Computer name in diagnostics output (ex: 'c1')",
+                    help="Computer name in diagnostics output (ex: 'com-1')",
                     metavar="DIAG_HOSTNAME",
                     action="store", default = hostname)
   options, args = parser.parse_args(rospy.myargv())
