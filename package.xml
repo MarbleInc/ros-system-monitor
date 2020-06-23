@@ -17,4 +17,5 @@
   <run_depend>hddtemp</run_depend>
   <run_depend>ntpdate</run_depend>
   <run_depend>ifstat</run_depend>
+  <run_depend>mbot_diagnostics</run_depend>
 </package>

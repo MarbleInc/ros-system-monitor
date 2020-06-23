@@ -54,8 +54,8 @@ import socket
 
 from diagnostic_msgs.msg import DiagnosticArray, DiagnosticStatus, KeyValue
 
-from marble_structs.diagnostics import Status
-from mbot_diagnostics import DiagnosticUpdater, GenericDiagnostic
+from mbot_diagnostics import Status
+from mbot_diagnostics_ros import DiagnosticUpdater, GenericDiagnostic
 
 cpu_load_warn = 0.9
 cpu_load_error = 1.1

@@ -54,8 +54,8 @@ import socket
 
 from diagnostic_msgs.msg import DiagnosticArray, DiagnosticStatus, KeyValue
 
-from marble_structs.diagnostics import Status
-from mbot_diagnostics import DiagnosticUpdater, GenericDiagnostic
+from mbot_diagnostics import Status
+from mbot_diagnostics_ros import DiagnosticUpdater, GenericDiagnostic
 
 mem_level_warn = 0.95
 mem_level_error = 0.99
